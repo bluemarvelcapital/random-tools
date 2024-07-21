@@ -1,7 +1,7 @@
 import React from 'react';
-import { Page, Layout } from '@shopify/polaris';
-import ResourceListWithViewsExample from '../componenets/resourceLists/ResourceListWithViews';
-import OrderOverview from '../componenets/analytics/OrderOverview';
+import { Page } from '@shopify/polaris';
+import ResourceListWithViewsExample from '../components/resourceLists/ResourceListWithViews';
+import OrderOverview from '../components/analytics/OrderOverview';
 
 function OrdersPage() {
   return (

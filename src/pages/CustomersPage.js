@@ -1,6 +1,6 @@
 import React from 'react';
 import { Page } from '@shopify/polaris';
-import CustomersPage from '../componenets/customer/CustomersPage';
+import CustomersPage from '../components/customer/CustomersPage';
 
 function Home() {
   return (

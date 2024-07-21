@@ -1,11 +1,11 @@
 import React from 'react';
 import { Page } from '@shopify/polaris';
-import ResourceListExample from '../componenets/resourceLists/ResourceListExample';
+import ResourceListWithViews from '../components/resourceLists/ResourceListWithViews';
 
 function Home() {
   return (
     <Page title="Orders">
-      <ResourceListExample />
+      <ResourceListWithViews />
     </Page>
   );
 }
