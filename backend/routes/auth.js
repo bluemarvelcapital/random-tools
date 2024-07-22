@@ -1,11 +1,11 @@
 const express = require('express');
 const passport = require('passport');
 const bcrypt = require('bcryptjs');
+const { ensureAuthenticated } = require('../middleware/auth'); // Import the middleware
 const router = express.Router();
 
 const users = []; // Replace with your actual user database
 
-// Add an initial user for testing
 const createInitialUser = async () => {
   const hashedPassword = await bcrypt.hash('password', 10);
   users.push({
@@ -13,10 +13,9 @@ const createInitialUser = async () => {
     email: 'test@example.com',
     password: hashedPassword
   });
-  console.log('Initial user created:', users[0]); // Log initial user creation
+  console.log('Initial user created:', users[0]);
 };
 
-// Call the function to create the initial user
 createInitialUser();
 
 router.post('/login', (req, res, next) => {
@@ -27,7 +26,6 @@ router.post('/login', (req, res, next) => {
     }
     if (!user) {
       console.log('Authentication failed: User not found');
-      console.log(user)
       return res.status(401).send({ message: 'Invalid credentials' });
     }
     req.logIn(user, (err) => {
@@ -65,6 +63,19 @@ router.get('/logout', (req, res) => {
     }
     res.send({ message: 'Logged out successfully' });
   });
+});
+
+// Protected route example
+router.get('/protected-route', ensureAuthenticated, (req, res) => {
+  res.send('This is a protected route');
+});
+
+router.get('/current-session', (req, res) => {
+  if (req.isAuthenticated()) {
+    res.send(req.user);
+  } else {
+    res.send(null);
+  }
 });
 
 module.exports = router;

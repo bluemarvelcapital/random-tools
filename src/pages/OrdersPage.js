@@ -9,6 +9,7 @@ function OrdersPage() {
 
   if (!user) {
     return <p>Loading...</p>;
+    
   }
 
   return (

@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const session = require('express-session');
+const cookieParser = require('cookie-parser');
 const passport = require('./config/passport-config');
 const authRoutes = require('./routes/auth');
 const cors = require('cors');
@@ -16,11 +17,13 @@ app.use(cors({
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+app.use(cookieParser());
+
 app.use(session({
   secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: false, httpOnly: false } // Ensure cookies are not blocked
+  cookie: { secure: false, httpOnly: true }
 }));
 
 app.use(passport.initialize());

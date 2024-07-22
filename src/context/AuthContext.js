@@ -9,15 +9,29 @@ export const AuthProvider = ({ children }) => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const storedUser = JSON.parse(localStorage.getItem('user'));
-    if (storedUser) {
-      setUser(storedUser);
-    }
+    const fetchUser = async () => {
+      try {
+        const storedUser = JSON.parse(localStorage.getItem('user'));
+        if (storedUser) {
+          setUser(storedUser);
+        } else {
+          const response = await axios.get(`${process.env.REACT_APP_API_URL}/auth/current-session`, { withCredentials: true });
+          if (response.data) {
+            setUser(response.data);
+            localStorage.setItem('user', JSON.stringify(response.data));
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching user', error);
+      }
+    };
+
+    fetchUser();
   }, []);
 
   const login = async (email, password) => {
     try {
-      const response = await axios.post(`${process.env.REACT_APP_API_URL}/auth/login`, { email, password });
+      const response = await axios.post(`${process.env.REACT_APP_API_URL}/auth/login`, { email, password }, { withCredentials: true });
       const user = response.data;
       setUser(user);
       localStorage.setItem('user', JSON.stringify(user));
@@ -29,21 +43,26 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (email, password) => {
     try {
-      await axios.post(`${process.env.REACT_APP_API_URL}/auth/register`, { email, password });
+      await axios.post(`${process.env.REACT_APP_API_URL}/auth/register`, { email, password }, { withCredentials: true });
       navigate('/login');
     } catch (error) {
       console.error('Registration failed', error);
     }
   };
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('user');
-    navigate('/login');
+  const logout = async () => {
+    try {
+      await axios.get(`${process.env.REACT_APP_API_URL}/auth/logout`, { withCredentials: true });
+      setUser(null);
+      localStorage.removeItem('user');
+      navigate('/login');
+    } catch (error) {
+      console.error('Logout failed', error);
+    }
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout }}>
+    <AuthContext.Provider value={{ user, setUser, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   );
