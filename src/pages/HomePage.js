@@ -1,7 +1,19 @@
-import { Page } from '@shopify/polaris';
+import React from 'react';
+import { useAuth } from '../context/AuthContext';
 
-function Home() {
-  return <Page title="Home">Welcome to the Home page!</Page>;
-}
+const HomePage = () => {
+  const { user } = useAuth();
 
-export default Home;
+  if (!user) {
+    return <p>Loading...</p>;
+  }
+
+  return (
+    <div>
+      <h1>Welcome, {user.email}!</h1>
+      <p>This is the home page, accessible only to logged-in users.</p>
+    </div>
+  );
+};
+
+export default HomePage;

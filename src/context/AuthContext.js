@@ -23,7 +23,7 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('user', JSON.stringify(user));
       navigate('/');
     } catch (error) {
-      console.error('Login failed', error.response ? error.response.data : error.message);
+      console.error('Login failed', error);
     }
   };
 
@@ -32,7 +32,7 @@ export const AuthProvider = ({ children }) => {
       await axios.post(`${process.env.REACT_APP_API_URL}/auth/register`, { email, password });
       navigate('/login');
     } catch (error) {
-      console.error('Registration failed', error.response ? error.response.data : error.message);
+      console.error('Registration failed', error);
     }
   };
 
