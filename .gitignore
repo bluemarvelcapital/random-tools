@@ -21,6 +21,7 @@
 
 # Ignore all .env files
 *.env
+/shopify-metafileds/.env
 
 
 npm-debug.log*
