@@ -1,11 +1,10 @@
-// src/componenets/analytics/OrderOverview.js
-
+ 
 import React, { useEffect, useRef, useMemo } from 'react';
 import { Card, Text, Layout, Badge } from '@shopify/polaris';
 import { Line } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend } from 'chart.js';
 
-// Register the necessary components with Chart.js
+ 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
 
 const OrderOverview = () => {

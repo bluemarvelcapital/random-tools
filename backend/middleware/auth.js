@@ -6,4 +6,3 @@ module.exports = {
       res.status(401).send({ message: 'Please log in to view this resource' });
     }
   };
-  

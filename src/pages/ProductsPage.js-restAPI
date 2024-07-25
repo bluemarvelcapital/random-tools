@@ -1,0 +1,47 @@
+import React, { useEffect, useState } from 'react';
+import { Page, Card, BlockStack } from '@shopify/polaris';
+import { useAuth } from '../context/AuthContext';
+import axios from 'axios';
+
+function ProductsPage() {
+  const { user } = useAuth(); // Assuming user context provides vendorId
+  const [products, setProducts] = useState([]);
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        // const response = await axios.get(`${process.env.REACT_APP_API_URL}/products?vendorId=${user.email}`);
+        const response = await axios.get(`${process.env.REACT_APP_API_URL}/products?vendorId=2380e656-53c6-441b-8bb2-5e8718789220`);
+        setProducts(response.data);
+      } catch (error) {
+        console.error('Error fetching products:', error);
+      }
+    };
+
+    
+
+    if (user) {
+        console.log(user.email)
+      fetchProducts();
+    }
+
+    if (!user) {
+        console.log("no user found / products page")
+    }
+  }, [user]);
+
+  return (
+    <Page title="Products">
+      {products.map(product => (
+        <Card key={product.id} title={product.title} sectioned>
+          <BlockStack>
+            <p>{product.description}</p>
+            {/* Add other product details as needed */}
+          </BlockStack>
+        </Card>
+      ))}
+    </Page>
+  );
+}
+
+export default ProductsPage;

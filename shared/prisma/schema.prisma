@@ -1,0 +1,62 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+datasource db {
+  provider = "sqlite" // or your preferred database
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id       Int      @id @default(autoincrement())
+  email    String   @unique
+  password String
+  role     String   @default("user") // Added a role field
+  vendors  Vendor[]
+}
+
+model Vendor {
+  id       String    @id @default(uuid())
+  name     String
+  email    String    @unique
+  products Product[]
+  orders   Order[]
+  User     User?     @relation(fields: [userId], references: [id])
+  userId   Int?
+}
+
+model Product {
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  price       Float    @default(0.0)
+  stock       Int      @default(0)
+  vendorId    String
+  vendor      Vendor   @relation(fields: [vendorId], references: [id])
+  shopifyId   String   @default("")
+}
+
+model Customer {
+  id     String  @id @default(uuid())
+  name   String
+  email  String
+  orders Order[]
+}
+
+model Order {
+  id         String   @id @default(uuid())
+  customerId String
+  vendorId   String
+  date       DateTime @default(now())
+  total      Float
+  status     String
+  customer   Customer @relation(fields: [customerId], references: [id])
+  vendor     Vendor   @relation(fields: [vendorId], references: [id])
+  shopifyId  String // Shopify order ID
+}

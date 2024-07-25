@@ -1,4 +1,4 @@
-// NavigationBar.js
+ 
 import { Navigation } from '@shopify/polaris';
 import {
   HomeIcon,
