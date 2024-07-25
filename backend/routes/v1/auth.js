@@ -1,10 +1,11 @@
 const express = require('express');
 const passport = require('passport');
 const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
 const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const { ensureAuthenticated } = require('../../middleware/auth');
+const jwt = require('jsonwebtoken');
 const router = express.Router();
+const prisma = new PrismaClient();
 
 /**
  * @swagger
@@ -30,17 +31,25 @@ const router = express.Router();
  *         description: Internal Server Error
  */
 router.post('/register', async (req, res) => {
+  const { email, password } = req.body;
+
   try {
-    const hashedPassword = await bcrypt.hash(req.body.password, 10);
+    const existingUser = await prisma.user.findUnique({ where: { email } });
+    if (existingUser) {
+      return res.status(400).json({ error: 'Email already registered.' });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
     const user = await prisma.user.create({
       data: {
-        email: req.body.email,
+        email,
         password: hashedPassword,
       },
     });
-    res.status(201).send({ message: 'User registered successfully' });
+
+    res.status(201).json(user);
   } catch (error) {
-    res.status(500).send({ message: 'Internal Server Error' });
+    res.status(500).json({ error: error.message });
   }
 });
 
@@ -68,41 +77,21 @@ router.post('/register', async (req, res) => {
  *         description: Invalid credentials
  */
 router.post('/login', (req, res, next) => {
-  passport.authenticate('local', { session: false }, (err, user, info) => {
+  passport.authenticate('local', (err, user, info) => {
     if (err) {
       return next(err);
     }
     if (!user) {
-      return res.status(401).send({ message: 'Invalid credentials' });
+      return res.status(401).json({ error: 'Invalid credentials' });
     }
-    const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1h' });
-    return res.json({ token });
-  })(req, res, next);
-});
-
-/**
- * @swagger
- * /api/v1/auth/logout:
- *   post:
- *     summary: Logout a user
- *     tags: [Auth]
- *     responses:
- *       200:
- *         description: User logged out successfully
- */
-router.post('/logout', (req, res) => {
-  req.logout((err) => {
-    if (err) {
-      return res.status(500).send({ message: 'Internal Server Error' });
-    }
-    req.session.destroy((err) => {
+    req.logIn(user, (err) => {
       if (err) {
-        return res.status(500).send({ message: 'Internal Server Error' });
+        return next(err);
       }
-      res.clearCookie('connect.sid');
-      res.send({ message: 'User logged out successfully' });
+      const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, { expiresIn: '1d' });
+      return res.json({ token });
     });
-  });
+  })(req, res, next);
 });
 
 module.exports = router;

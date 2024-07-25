@@ -1,14 +1,17 @@
 const express = require('express');
+const axios = require('axios');
 const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
-const { ensureAuthenticated } = require('../../middleware/auth');
+const passport = require('passport');
 const router = express.Router();
+const prisma = new PrismaClient();
+
+const postcodesIoUrl = process.env.POSTCODES_IO_URL;
 
 /**
  * @swagger
- * /api/v1/vendor/products:
+ * /api/v1/vendor/register:
  *   post:
- *     summary: Create a new product
+ *     summary: Register a new vendor
  *     tags: [Vendor]
  *     requestBody:
  *       required: true
@@ -17,48 +20,63 @@ const router = express.Router();
  *           schema:
  *             type: object
  *             properties:
- *               title:
+ *               name:
  *                 type: string
- *               description:
+ *               email:
  *                 type: string
- *               price:
- *                 type: number
- *               stock:
- *                 type: integer
- *               vendorId:
+ *               postcode:
+ *                 type: string
+ *               location:
+ *                 type: string
+ *               openingTimes:
+ *                 type: string
+ *               contactInfo:
  *                 type: string
  *     responses:
- *       200:
- *         description: Product created successfully
+ *       201:
+ *         description: Vendor registered successfully
  *       500:
  *         description: Internal Server Error
  */
-router.post('/products', ensureAuthenticated, async (req, res) => {
-  const { title, description, price, stock, vendorId } = req.body;
-  const product = await prisma.product.create({
-    data: {
-      title,
-      description,
-      price,
-      stock,
-      vendor: { connect: { id: vendorId } },
-    },
-  });
-  res.send(product);
+router.post('/register', passport.authenticate('jwt', { session: false }), async (req, res) => {
+  const { name, email, postcode, location, openingTimes, contactInfo } = req.body;
+
+  try {
+    const existingVendor = await prisma.vendor.findUnique({ where: { email } });
+    if (existingVendor) {
+      return res.status(400).json({ error: 'Email already registered.' });
+    }
+
+    const response = await axios.get(`${postcodesIoUrl}/${postcode}`);
+    if (response.data.status !== 200) {
+      return res.status(400).json({ error: 'Invalid postcode' });
+    }
+
+    const vendor = await prisma.vendor.create({
+      data: {
+        name,
+        email,
+        latitude: response.data.result.latitude,
+        longitude: response.data.result.longitude,
+        location,
+        openingTimes,
+        contactInfo,
+        userId: req.user.id,
+      },
+    });
+
+    res.status(201).json(vendor);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 /**
  * @swagger
- * /api/v1/vendor/products/{id}:
+ * /api/v1/vendor/update:
  *   put:
- *     summary: Update an existing product
+ *     summary: Update vendor profile
  *     tags: [Vendor]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
  *     requestBody:
  *       required: true
  *       content:
@@ -66,52 +84,60 @@ router.post('/products', ensureAuthenticated, async (req, res) => {
  *           schema:
  *             type: object
  *             properties:
- *               title:
+ *               id:
  *                 type: string
- *               description:
+ *               name:
  *                 type: string
- *               price:
- *                 type: number
- *               stock:
- *                 type: integer
+ *               email:
+ *                 type: string
+ *               postcode:
+ *                 type: string
+ *               location:
+ *                 type: string
+ *               openingTimes:
+ *                 type: string
+ *               contactInfo:
+ *                 type: string
  *     responses:
  *       200:
- *         description: Product updated successfully
+ *         description: Vendor updated successfully
  *       500:
  *         description: Internal Server Error
  */
-router.put('/products/:id', ensureAuthenticated, async (req, res) => {
-  const { id } = req.params;
-  const { title, description, price, stock } = req.body;
-  const product = await prisma.product.update({
-    where: { id },
-    data: { title, description, price, stock },
-  });
-  res.send(product);
-});
+router.put('/update', passport.authenticate('jwt', { session: false }), async (req, res) => {
+  const { id, name, email, postcode, location, openingTimes, contactInfo } = req.body;
 
-/**
- * @swagger
- * /api/v1/vendor/products/{id}:
- *   delete:
- *     summary: Delete a product
- *     tags: [Vendor]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Product deleted successfully
- *       500:
- *         description: Internal Server Error
- */
-router.delete('/products/:id', ensureAuthenticated, async (req, res) => {
-  const { id } = req.params;
-  await prisma.product.delete({ where: { id } });
-  res.send({ message: 'Product deleted' });
+  try {
+    const data = {};
+    if (name) data.name = name;
+    if (email) {
+      const existingVendor = await prisma.vendor.findUnique({ where: { email } });
+      if (existingVendor && existingVendor.id !== id) {
+        return res.status(400).json({ error: 'Email already in use.' });
+      }
+      data.email = email;
+    }
+    if (postcode) {
+      const response = await axios.get(`${postcodesIoUrl}/${postcode}`);
+      if (response.data.status !== 200) {
+        return res.status(400).json({ error: 'Invalid postcode' });
+      }
+      data.latitude = response.data.result.latitude;
+      data.longitude = response.data.result.longitude;
+    }
+    if (location) data.location = location;
+    if (openingTimes) data.openingTimes = openingTimes;
+    if (contactInfo) data.contactInfo = contactInfo;
+
+    const vendor = await prisma.vendor.update({
+      where: { id },
+      data,
+    });
+
+    res.status(200).json(vendor);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 module.exports = router;

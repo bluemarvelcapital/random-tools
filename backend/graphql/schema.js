@@ -1,10 +1,9 @@
-const { gql } = require('graphql-tag');
+const { gql } = require('apollo-server-express');
 
 const typeDefs = gql`
   type User {
     id: ID!
     email: String!
-    password: String!
     role: String!
   }
 
@@ -12,10 +11,13 @@ const typeDefs = gql`
     id: ID!
     name: String!
     email: String!
-    userId: Int
-    user: User
-    products: [Product]
-    orders: [Order]
+    latitude: Float
+    longitude: Float
+    location: String
+    openingTimes: String
+    contactInfo: String
+    products: [Product!]!
+    orders: [Order!]!
   }
 
   type Product {
@@ -24,33 +26,47 @@ const typeDefs = gql`
     description: String!
     price: Float!
     stock: Int!
-    vendorId: String!
+    vendorId: ID!
+    vendor: Vendor!
   }
 
   type Order {
     id: ID!
-    customerId: String!
-    vendorId: String!
+    customerId: ID!
+    vendorId: ID!
     date: String!
     total: Float!
     status: String!
+    customer: Customer!
+    vendor: Vendor!
+  }
+
+  type Customer {
+    id: ID!
+    name: String!
+    email: String!
+    orders: [Order!]!
   }
 
   type Query {
-    vendors: [Vendor]
+    vendors: [Vendor!]!
     vendor(id: ID!): Vendor
-    products(vendorId: ID!, offset: Int, limit: Int): [Product]
+    products(vendorId: ID!): [Product!]!
     product(id: ID!): Product
+    orders(vendorId: ID!): [Order!]!
+    order(id: ID!): Order
   }
 
   type Mutation {
-    registerUser(email: String!, password: String!): User
-    registerVendor(email: String!, password: String!): User
-    login(email: String!, password: String!): User
-    createVendor(name: String!, email: String!): Vendor
-    createProduct(vendorId: String!, title: String!, description: String!, price: Float!, stock: Int!): Product
-    updateProduct(id: ID!, title: String, description: String, price: Float, stock: Int): Product
-    deleteProduct(id: ID!): Product
+    register(email: String!, password: String!): User!
+    login(email: String!, password: String!): String! # returns a JWT token
+    createVendor(name: String!, email: String!, postcode: String!, location: String, openingTimes: String, contactInfo: String): Vendor!
+    updateVendor(id: ID!, name: String, email: String, postcode: String, location: String, openingTimes: String, contactInfo: String): Vendor!
+    deleteVendor(id: ID!): Boolean!
+    createProduct(title: String!, description: String!, price: Float!, stock: Int!, vendorId: ID!): Product!
+    updateProduct(id: ID!, title: String, description: String, price: Float, stock: Int): Product!
+    deleteProduct(id: ID!): Boolean!
+    updateOrderStatus(id: ID!, status: String!): Order!
   }
 `;
 

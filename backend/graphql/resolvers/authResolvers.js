@@ -1,14 +1,15 @@
 const bcrypt = require('bcryptjs');
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
-const { ApolloError } = require('apollo-server-errors');
+const jwt = require('jsonwebtoken');
+const { AuthenticationError } = require('apollo-server-express');
 
 const authResolvers = {
   Mutation: {
-    registerUser: async (parent, args) => {
+    register: async (parent, args) => {
       const existingUser = await prisma.user.findUnique({ where: { email: args.email } });
       if (existingUser) {
-        throw new ApolloError('Email already registered.');
+        throw new Error('Email already registered.');
       }
 
       const hashedPassword = await bcrypt.hash(args.password, 10);
@@ -16,23 +17,6 @@ const authResolvers = {
         data: {
           email: args.email,
           password: hashedPassword,
-          role: 'user',
-        },
-      });
-      return user;
-    },
-    registerVendor: async (parent, args) => {
-      const existingUser = await prisma.user.findUnique({ where: { email: args.email } });
-      if (existingUser) {
-        throw new ApolloError('Email already registered.');
-      }
-
-      const hashedPassword = await bcrypt.hash(args.password, 10);
-      const user = await prisma.user.create({
-        data: {
-          email: args.email,
-          password: hashedPassword,
-          role: 'vendor',
         },
       });
       return user;
@@ -40,13 +24,14 @@ const authResolvers = {
     login: async (parent, args) => {
       const user = await prisma.user.findUnique({ where: { email: args.email } });
       if (!user) {
-        throw new ApolloError('User not found');
+        throw new AuthenticationError('User not found');
       }
       const isMatch = await bcrypt.compare(args.password, user.password);
       if (!isMatch) {
-        throw new ApolloError('Incorrect password');
+        throw new AuthenticationError('Incorrect password');
       }
-      return user;
+      const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, { expiresIn: '1d' });
+      return { token };
     },
   },
 };
