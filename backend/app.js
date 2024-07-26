@@ -1,22 +1,21 @@
 require('dotenv').config();
 const express = require('express');
 const session = require('express-session');
-const passport = require('./config/passport-config'); // Local strategy
-const jwtPassport = require('./config/passport-jwt'); // JWT strategy
+const passport = require('passport');
+require('./config/passport-config')(passport); // Local strategy
+require('./config/passport-jwt')(passport); // JWT strategy
 const { ApolloServer } = require('@apollo/server');
 const { expressMiddleware } = require('@apollo/server/express4');
 const { makeExecutableSchema } = require('@graphql-tools/schema');
 const typeDefs = require('./graphql/schema');
 const resolvers = require('./graphql/resolvers');
-const authRoutesV1 = require('./routes/v1/auth');
-const vendorRoutesV1 = require('./routes/v1/vendor');
-const storefrontRoutesV1 = require('./routes/v1/storeFront');
-const shopifyRoutesV1 = require('./routes/v1/shopify');
-const userRoutesV1 = require('./routes/v1/user');
+const authRoutes = require('./routes/v1/auth');
+const productRoutes = require('./routes/v1/products');
+const vendorRoutes = require('./routes/v1/vendor');
+const publicRoutes = require('./routes/v1/public');
+const setupSwagger = require('./swagger');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
-const { checkRole, checkRoles } = require('./middleware/roleMiddleware');
-const setupSwagger = require('./swagger'); // Import Swagger setup
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -39,7 +38,7 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 
-setupSwagger(app); // Set up Swagger
+setupSwagger(app);
 
 const server = new ApolloServer({
   schema: makeExecutableSchema({
@@ -58,18 +57,15 @@ const server = new ApolloServer({
     }
     return { user: null };
   },
-  introspection: process.env.NODE_ENV === 'development', // Enable introspection in development mode
-  playground: process.env.NODE_ENV === 'development', // Enable GraphQL Playground in development mode
 });
 
 async function startServer() {
   await server.start();
   app.use('/graphql', expressMiddleware(server));
-  app.use('/api/v1/auth', authRoutesV1);
-  app.use('/api/v1/vendor', passport.authenticate('jwt', { session: false }), checkRole('vendor'), vendorRoutesV1); // Vendor management routes
-  app.use('/api/v1/store', storefrontRoutesV1); // Storefront routes
-  app.use('/api/v1/shopify', shopifyRoutesV1); // Shopify routes
-  app.use('/api/v1/user', userRoutesV1); // User routes
+  app.use('/api/v1/auth', authRoutes);
+  app.use('/api/v1/products', passport.authenticate('jwt', { session: false }), productRoutes);
+  app.use('/api/v1/vendor', passport.authenticate('jwt', { session: false }), vendorRoutes);
+  app.use('/api/v1/public', publicRoutes);
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
   });
@@ -77,4 +73,10 @@ async function startServer() {
 
 startServer().catch(error => {
   console.error('Error starting server:', error);
+});
+
+// Global error handler
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err);
+  res.status(500).json({ error: 'Internal Server Error' });
 });

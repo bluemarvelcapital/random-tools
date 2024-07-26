@@ -1,5 +1,5 @@
 datasource db {
-  provider = "sqlite" // Change to your preferred database provider (e.g., "postgresql" or "mysql")
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -15,27 +15,51 @@ model User {
   vendors  Vendor[]
 }
 
-model Vendor {
-  id        String   @id @default(uuid())
-  name      String
-  email     String   @unique
-  products  Product[]
-  orders    Order[]
-  userId    Int
-  user      User     @relation(fields: [userId], references: [id])
-  latitude  Float
-  longitude Float
+model Product {
+  id                 String   @id @default(uuid())
+  vendorId           String
+  vendor             Vendor   @relation(fields: [vendorId], references: [id])
+  title              String
+  description        String
+  price              Float
+  stock              Int
+  sku                String?
+  barcode            String?
+  weight             Float?
+  weightUnit         String?
+  tags               String
+  productType        String
+  status             String
+  inventoryPolicy    String
+  fulfillmentService String
+  shopifyId          String
+  images             Image[]
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 }
 
-model Product {
-  id          String   @id @default(uuid())
-  title       String
-  description String
-  price       Float    @default(0.0)
-  stock       Int      @default(0)
-  vendorId    String
-  vendor      Vendor   @relation(fields: [vendorId], references: [id])
-  shopifyId   String   @default("")
+model Image {
+  id        String   @id @default(uuid())
+  url       String
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+}
+
+model Vendor {
+  id              String           @id @default(uuid())
+  name            String
+  email           String           @unique
+  postcode        String
+  location        String
+  openingTimes    String
+  contactInfo     String
+  latitude        Float
+  longitude       Float
+  userId          Int
+  user            User             @relation(fields: [userId], references: [id])
+  products        Product[]
+  orders          Order[]
+  deletionRequests DeletionRequest[]
 }
 
 model Customer {
@@ -54,5 +78,15 @@ model Order {
   status     String
   customer   Customer @relation(fields: [customerId], references: [id])
   vendor     Vendor   @relation(fields: [vendorId], references: [id])
-  shopifyId  String // Shopify order ID
+  shopifyId  String
+}
+
+model DeletionRequest {
+  id       String   @id @default(uuid())
+  vendorId String
+  reason   String
+  status   String   @default("pending")
+  vendor   Vendor   @relation(fields: [vendorId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
