@@ -2,19 +2,22 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 const addProduct = async (productData) => {
-  const { tags, images, ...rest } = productData;
-  const tagsString = tags ? tags.join(', ') : '';
-  return prisma.product.create({
-    data: {
-      ...rest,
-      tags: tagsString,
-      images: {
-        create: images.map((url) => ({ url })),
+  const { tags, images, vendorName, ...rest } = productData;
+  return prisma.$transaction(async (tx) => {
+    const product = await tx.product.create({
+      data: {
+        ...rest,
+        tags: tags, // Ensure tags are passed as an array
+        vendorName: vendorName,
+        images: {
+          create: images.map((url) => ({ url })),
+        },
       },
-    },
-    include: {
-      images: true,
-    },
+      include: {
+        images: true,
+      },
+    });
+    return product;
   });
 };
 
@@ -27,13 +30,12 @@ const getProductById = async (id) => {
 
 const updateProduct = async (productData) => {
   const { id, tags, images, ...rest } = productData;
-  const tagsString = tags ? tags.join(', ') : '';
 
   const product = await prisma.product.update({
     where: { id },
     data: {
       ...rest,
-      tags: tagsString,
+      tags: tags, // Ensure tags are passed as an array
     },
     include: {
       images: true,

@@ -1,5 +1,5 @@
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -27,16 +27,19 @@ model Product {
   barcode            String?
   weight             Float?
   weightUnit         String?
-  tags               String
+  tags               String[]
   productType        String
   status             String
   inventoryPolicy    String
   fulfillmentService String
   shopifyId          String
   images             Image[]
+  vendorName         String   
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 }
+
+
 
 model Image {
   id        String   @id @default(uuid())
@@ -46,19 +49,19 @@ model Image {
 }
 
 model Vendor {
-  id              String           @id @default(uuid())
-  name            String
-  email           String           @unique
-  postcode        String
-  location        String
-  openingTimes    String
-  contactInfo     String
-  latitude        Float
-  longitude       Float
-  userId          Int
-  user            User             @relation(fields: [userId], references: [id])
-  products        Product[]
-  orders          Order[]
+  id            String           @id @default(uuid())
+  name          String
+  email         String           @unique
+  postcode      String
+  location      String
+  openingTimes  String
+  contactInfo   String
+  latitude      Float
+  longitude     Float
+  userId        Int
+  user          User             @relation(fields: [userId], references: [id])
+  products      Product[]
+  orders        Order[]
   deletionRequests DeletionRequest[]
 }
 
@@ -82,11 +85,11 @@ model Order {
 }
 
 model DeletionRequest {
-  id       String   @id @default(uuid())
-  vendorId String
-  reason   String
-  status   String   @default("pending")
-  vendor   Vendor   @relation(fields: [vendorId], references: [id])
+  id        String   @id @default(uuid())
+  vendorId  String
+  reason    String
+  status    String   @default("pending")
+  vendor    Vendor   @relation(fields: [vendorId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
