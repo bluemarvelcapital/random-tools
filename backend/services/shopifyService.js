@@ -7,7 +7,7 @@ if (!SHOPIFY_API_URL || !SHOPIFY_ACCESS_TOKEN) {
 }
 
 const addProductToShopify = async (productData) => {
-  const { title, description, price, stock, productType, tags, vendorName, images } = productData;
+  const { title, description, price, stock, productType, tags, vendorName, images, weight, weightUnit } = productData;
 
   try {
     const response = await axios.post(
@@ -23,7 +23,9 @@ const addProductToShopify = async (productData) => {
             {
               price,
               inventory_quantity: stock,
-              inventory_management: 'shopify'
+              inventory_management: 'shopify',
+              weight,
+              weight_unit: weightUnit
             }
           ],
           images: images.map(url => ({ src: url }))
@@ -45,7 +47,7 @@ const addProductToShopify = async (productData) => {
 };
 
 const updateProductInShopify = async (shopifyId, productData) => {
-  const { title, description, price, stock, productType, tags, status, vendorName, images } = productData;
+  const { title, description, price, stock, productType, tags, status, vendorName, images, weight, weightUnit } = productData;
 
   try {
     await axios.put(
@@ -63,7 +65,9 @@ const updateProductInShopify = async (shopifyId, productData) => {
               id: shopifyId,
               price,
               inventory_quantity: stock,
-              inventory_management: 'shopify'
+              inventory_management: 'shopify',
+              weight,
+              weight_unit: weightUnit
             }
           ],
           status,
