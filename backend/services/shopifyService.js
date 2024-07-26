@@ -50,7 +50,7 @@ const publishProductToSalesChannel = async (productId) => {
 };
 
 const addProductToShopify = async (productData) => {
-  const { title, description, price, stock, productType, tags, vendor, images, weight, weightUnit, compareAtPrice } = productData;
+  const { title, description, price, stock, productType, tags, vendorName, images, weight, weightUnit, compareAtPrice } = productData;
 
   try {
     const response = await axios.post(
@@ -59,7 +59,7 @@ const addProductToShopify = async (productData) => {
         product: {
           title,
           body_html: description,
-          vendor,
+          vendor: vendorName,
           product_type: productType,
           tags: tags.join(', '),
           variants: [
@@ -89,7 +89,7 @@ const addProductToShopify = async (productData) => {
     return response.data.product;
   } catch (error) {
     console.error('Error adding product to Shopify:', error.response ? error.response.data : error.message);
-    throw error;
+    throw new Error('Failed to add product to Shopify');
   }
 };
 
@@ -130,7 +130,7 @@ const updateProductInShopify = async (shopifyId, productData) => {
     );
   } catch (error) {
     console.error('Error updating product in Shopify:', error.response ? error.response.data : error.message);
-    throw error;
+    throw new Error('Failed to update product in Shopify');
   }
 };
 
@@ -143,7 +143,7 @@ const deleteProductFromShopify = async (shopifyId) => {
     });
   } catch (error) {
     console.error('Error deleting product from Shopify:', error.response ? error.response.data : error.message);
-    throw error;
+    throw new Error('Failed to delete product from Shopify');
   }
 };
 
