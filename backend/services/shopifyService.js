@@ -50,51 +50,54 @@ const publishProductToSalesChannel = async (productId) => {
 };
 
 const addProductToShopify = async (productData) => {
-  const { title, description, price, stock, productType, tags, vendorName, images, weight, weightUnit, compareAtPrice } = productData;
-
-  try {
-    const response = await axios.post(
-      `${SHOPIFY_API_URL}/products.json`,
-      {
-        product: {
-          title,
-          body_html: description,
-          vendor: vendorName,
-          product_type: productType,
-          tags: tags.join(', '),
-          variants: [
-            {
-              price,
-              compare_at_price: compareAtPrice,
-              inventory_quantity: stock,
-              inventory_management: 'shopify',
-              weight,
-              weight_unit: weightUnit
-            }
-          ],
-          images: images.map(url => ({ src: url }))
-        },
-      },
-      {
-        headers: {
-          'X-Shopify-Access-Token': SHOPIFY_ACCESS_TOKEN,
-          'Content-Type': 'application/json',
-        },
-      }
-    );
-
-    const productId = response.data.product.id;
-    await publishProductToSalesChannel(productId);
-
-    return response.data.product;
-  } catch (error) {
-    console.error('Error adding product to Shopify:', error.response ? error.response.data : error.message);
-    throw new Error('Failed to add product to Shopify');
-  }
-};
+    const { title, description, productType, tags, vendorName, images, variants } = productData;
+  
+    try {
+      const shopifyProductData = {
+        title,
+        body_html: description,
+        vendor: vendorName,
+        product_type: productType,
+        tags: tags.join(', '),
+        variants: variants.map(variant => ({
+          option1: variant.option1,
+          price: variant.price,
+          compare_at_price: variant.compareAtPrice,
+          inventory_quantity: variant.stock,
+          inventory_management: 'shopify',
+          sku: variant.sku,
+          barcode: variant.barcode,
+          weight: variant.weight,
+          weight_unit: variant.weightUnit,
+          image: variant.image ? { src: variant.image } : undefined
+        })),
+        images: images.map(url => ({ src: url }))
+      };
+  
+      const response = await axios.post(
+        `${SHOPIFY_API_URL}/products.json`,
+        { product: shopifyProductData },
+        {
+          headers: {
+            'X-Shopify-Access-Token': SHOPIFY_ACCESS_TOKEN,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+  
+      const productId = response.data.product.id;
+      await publishProductToSalesChannel(productId);
+  
+      return response.data.product;
+    } catch (error) {
+      console.error('Error adding product to Shopify:', error.response ? error.response.data : error.message);
+      throw new Error('Failed to add product to Shopify');
+    }
+  };
+  
 
 const updateProductInShopify = async (shopifyId, productData) => {
-  const { title, description, price, stock, productType, tags, status, images, weight, weightUnit, compareAtPrice } = productData;
+  const { title, description, price, stock, productType, tags, status, images, weight, weightUnit, compareAtPrice, variants } = productData;
 
   try {
     await axios.put(
@@ -106,17 +109,19 @@ const updateProductInShopify = async (shopifyId, productData) => {
           body_html: description,
           product_type: productType,
           tags: tags.join(', '),
-          variants: [
-            {
-              id: shopifyId,
-              price,
-              compare_at_price: compareAtPrice,
-              inventory_quantity: stock,
-              inventory_management: 'shopify',
-              weight,
-              weight_unit: weightUnit
-            }
-          ],
+          variants: variants.map(variant => ({
+            id: variant.id,
+            title: variant.title,
+            price: variant.price,
+            compare_at_price: variant.compareAtPrice,
+            inventory_quantity: variant.stock,
+            inventory_management: 'shopify',
+            sku: variant.sku,
+            barcode: variant.barcode,
+            weight: variant.weight,
+            weight_unit: variant.weightUnit,
+            image: { src: variant.images[0] }
+          })),
           status,
           images: images.map(url => ({ src: url }))
         },

@@ -6,20 +6,17 @@ const { POSTCODES_IO_URL } = process.env;
 const registerVendor = async (userId, vendorData) => {
   const { name, email, postcode, location, openingTimes, contactInfo } = vendorData;
 
-  // Check if the email is already registered as a vendor
   const existingVendor = await prisma.vendor.findUnique({ where: { email } });
   if (existingVendor) {
     throw new Error('Email is already registered as a vendor');
   }
 
-  // Fetch latitude and longitude from the postcode API
   const response = await axios.get(`${POSTCODES_IO_URL}/${postcode}`);
   if (response.data.status !== 200) {
     throw new Error('Invalid postcode');
   }
   const { latitude, longitude } = response.data.result;
 
-  // Create the vendor associated with the authenticated user
   return prisma.vendor.create({
     data: {
       name,
@@ -30,7 +27,7 @@ const registerVendor = async (userId, vendorData) => {
       contactInfo,
       latitude,
       longitude,
-      userId, // Link the vendor to the authenticated user
+      userId,
     },
   });
 };
@@ -54,6 +51,10 @@ const updateVendor = async (vendorData) => {
 };
 
 const getVendorById = async (id) => {
+  if (!id) {
+    throw new Error('Vendor ID is required');
+  }
+  console.log(`Fetching vendor with ID: ${id}`);
   return prisma.vendor.findUnique({ where: { id } });
 };
 

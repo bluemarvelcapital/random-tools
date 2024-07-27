@@ -2,24 +2,36 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 const addProduct = async (productData) => {
-  const { tags, images, vendorName, ...rest } = productData;
+  const { tags, images, variants, vendorName, ...rest } = productData; // Extract vendorName
   return prisma.$transaction(async (tx) => {
     const product = await tx.product.create({
       data: {
         ...rest,
         tags: tags, // Ensure tags are passed as an array
-        vendorName: vendorName,
         images: {
           create: images.map((url) => ({ url })),
+        },
+        variants: {
+          create: variants.map(variant => ({
+            option1: variant.option1,
+            price: variant.price,
+            compareAtPrice: variant.compareAtPrice,
+            stock: variant.stock,
+            weight: variant.weight,
+            weightUnit: variant.weightUnit,
+            // Remove image if not part of Prisma schema
+          })),
         },
       },
       include: {
         images: true,
+        variants: true, // Include variants to fetch the created variants
       },
     });
     return product;
   });
 };
+
 
 const getProductById = async (id) => {
   return prisma.product.findUnique({ 

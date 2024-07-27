@@ -210,7 +210,272 @@ router.get('/', async (req, res) => {
  */
 router.post('/product/add', ensureAuthenticated, async (req, res) => {
   try {
-    const vendor = await vendorService.getVendorById(req.body.vendorId);
+    const vendorId = req.body.vendorId;
+    if (!vendorId) {
+      return res.status(400).json({ error: 'Vendor ID is required' });
+    }
+
+    const vendor = await vendorService.getVendorById(vendorId);
+    if (!vendor) {
+      return res.status(404).json({ error: 'Vendor not found' });
+    }
+
+    req.body.vendorName = vendor.name; // Add vendor name to product data
+
+    const shopifyProduct = await shopifyService.addProductToShopify(req.body);
+
+    if (!shopifyProduct) {
+      return res.status(500).json({ error: 'Failed to add product to Shopify' });
+    }
+
+    const productData = { ...req.body, shopifyId: shopifyProduct.id.toString() };
+    const product = await productService.addProduct(productData);
+
+    res.status(200).json({ message: 'Product added successfully', product });
+  } catch (error) {
+    console.error('Error adding product:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
+
+/**
+ * @swagger
+ * /api/v1/vendor/product/update:
+ *   put:
+ *     summary: Update a product
+ *     tags: [Vendor]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               id:
+ *                 type: string
+ *               title:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               price:
+ *                 type: number
+ *               stock:
+ *                 type: integer
+ *               sku:
+ *                 type: string
+ *               barcode:
+ *                 type: string
+ *               weight:
+ *                 type: number
+ *               weightUnit:
+ *                 type: string
+ *               tags:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *               productType:
+ *                 type: string
+ *               status:
+ *                 type: string
+ *               inventoryPolicy:
+ *                 type: string
+ *               fulfillmentService:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Product updated successfully
+ *       400:
+ *         description: Invalid input
+ *       404:
+ *         description: Product not found
+ *       500:
+ *         description: Failed to update product
+ */
+
+router.put('/product/update', ensureAuthenticated, async (req, res) => {
+  try {
+    const product = await productService.getProductById(req.body.id);
+    if (!product) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+
+    await shopifyService.updateProductInShopify(product.shopifyId, req.body);
+    const updatedProduct = await productService.updateProduct(req.body);
+    res.status(200).json({ message: 'Product updated successfully', updatedProduct });
+  } catch (error) {
+    console.error('Error updating product:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
+
+/**
+ * @swagger
+ * /api/v1/vendor/update:
+ *   put:
+ *     summary: Update vendor profile
+ *     tags: [Vendor]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               id:
+ *                 type: string
+ *               name:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *               postcode:
+ *                 type: string
+ *               location:
+ *                 type: string
+ *               openingTimes:
+ *                 type: string
+ *               contactInfo:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Vendor profile updated successfully
+ *       400:
+ *         description: Invalid input
+ *       404:
+ *         description: Vendor not found
+ *       500:
+ *         description: Failed to update vendor profile
+ */
+router.put('/update', ensureAuthenticated, async (req, res) => {
+  try {
+    const updatedVendor = await vendorService.updateVendor(req.body);
+    res.status(200).json({ message: 'Vendor profile updated successfully', updatedVendor });
+  } catch (error) {
+    console.error('Error updating vendor profile:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/v1/vendor/{id}:
+ *   get:
+ *     summary: Get vendor details
+ *     tags: [Vendor]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Vendor details fetched successfully
+ *       404:
+ *         description: Vendor not found
+ *       500:
+ *         description: Failed to fetch vendor
+ */
+router.get('/:id', async (req, res) => {
+  try {
+    const vendor = await vendorService.getVendorById(req.params.id);
+    if (vendor) {
+      res.json(vendor);
+    } else {
+      res.status(404).json({ error: 'Vendor not found' });
+    }
+  } catch (error) {
+    console.error(`Error fetching vendor with ID ${req.params.id}:`, error);
+    res.status(500).json({ error: 'Failed to fetch vendor. Please try again later.' });
+  }
+});
+
+/**
+ * @swagger
+ * /api/v1/vendor:
+ *   get:
+ *     summary: Get all vendors
+ *     tags: [Vendor]
+ *     responses:
+ *       200:
+ *         description: Vendors fetched successfully
+ *       500:
+ *         description: Failed to fetch vendors
+ */
+router.get('/', async (req, res) => {
+  try {
+    const vendors = await vendorService.getAllVendors();
+    res.json(vendors);
+  } catch (error) {
+    console.error('Error fetching vendors:', error);
+    res.status(500).json({ error: 'Failed to fetch vendors. Please try again later.' });
+  }
+});
+
+/**
+ * @swagger
+ * /api/v1/vendor/product/add:
+ *   post:
+ *     summary: Add a new product
+ *     tags: [Vendor]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               vendorId:
+ *                 type: string
+ *               title:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               price:
+ *                 type: number
+ *               stock:
+ *                 type: integer
+ *               sku:
+ *                 type: string
+ *               barcode:
+ *                 type: string
+ *               weight:
+ *                 type: number
+ *               weightUnit:
+ *                 type: string
+ *               tags:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *               productType:
+ *                 type: string
+ *               status:
+ *                 type: string
+ *               inventoryPolicy:
+ *                 type: string
+ *               fulfillmentService:
+ *                 type: string
+ *               images:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *     responses:
+ *       200:
+ *         description: Product added successfully
+ *       400:
+ *         description: Invalid input
+ *       500:
+ *         description: Failed to add product
+ */
+router.post('/product/add', ensureAuthenticated, async (req, res) => {
+  try {
+    const vendorId = req.body.vendorId;
+    if (!vendorId) {
+      return res.status(400).json({ error: 'Vendor ID is required' });
+    }
+
+    const vendor = await vendorService.getVendorById(vendorId);
     if (!vendor) {
       return res.status(404).json({ error: 'Vendor not found' });
     }
@@ -489,3 +754,8 @@ router.get('/deletion-requests', ensureAuthenticated, async (req, res) => {
 });
 
 module.exports = router;
+
+
+
+
+

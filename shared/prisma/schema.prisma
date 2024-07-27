@@ -22,7 +22,7 @@ model Product {
   title              String
   description        String
   price              Float
-  compareAtPrice     Float?   // Add this line for compare at price
+  compareAtPrice     Float?
   stock              Int
   sku                String?
   barcode            String?
@@ -35,13 +35,24 @@ model Product {
   fulfillmentService String
   shopifyId          String
   images             Image[]
-  vendorName         String
+  variants           Variant[]
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 }
 
-
-
+model Variant {
+  id                String   @id @default(uuid())
+  productId         String
+  product           Product  @relation(fields: [productId], references: [id])
+  option1           String?
+  price             Float
+  compareAtPrice    Float?
+  stock             Int
+  weight            Float?
+  weightUnit        String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
 
 model Image {
   id        String   @id @default(uuid())
@@ -51,19 +62,19 @@ model Image {
 }
 
 model Vendor {
-  id            String           @id @default(uuid())
-  name          String
-  email         String           @unique
-  postcode      String
-  location      String
-  openingTimes  String
-  contactInfo   String
-  latitude      Float
-  longitude     Float
-  userId        Int
-  user          User             @relation(fields: [userId], references: [id])
-  products      Product[]
-  orders        Order[]
+  id          String    @id @default(uuid())
+  name        String
+  email       String    @unique
+  postcode    String
+  location    String
+  openingTimes String
+  contactInfo String
+  latitude    Float
+  longitude   Float
+  userId      Int
+  user        User      @relation(fields: [userId], references: [id])
+  products    Product[]
+  orders      Order[]
   deletionRequests DeletionRequest[]
 }
 
@@ -87,11 +98,11 @@ model Order {
 }
 
 model DeletionRequest {
-  id        String   @id @default(uuid())
-  vendorId  String
-  reason    String
-  status    String   @default("pending")
-  vendor    Vendor   @relation(fields: [vendorId], references: [id])
+  id       String   @id @default(uuid())
+  vendorId String
+  reason   String
+  status   String   @default("pending")
+  vendor   Vendor   @relation(fields: [vendorId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
