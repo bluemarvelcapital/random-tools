@@ -2,17 +2,19 @@ const express = require('express');
 const passport = require('passport');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-const { PrismaClient } = require('@prisma/client');
 const { check, validationResult } = require('express-validator');
 const { ensureAuthenticated } = require('../../middleware/auth');
-const router = express.Router();
+const vendorService = require('../../services/vendorService');
+const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
+const { v4: uuidv4 } = require('uuid');
+const router = express.Router();
 
 /**
  * @swagger
  * /api/v1/auth/register:
  *   post:
- *     summary: Register a new user
+ *     summary: Register a new vendor
  *     tags: [Auth]
  *     requestBody:
  *       required: true
@@ -25,9 +27,19 @@ const prisma = new PrismaClient();
  *                 type: string
  *               password:
  *                 type: string
+ *               name:
+ *                 type: string
+ *               postcode:
+ *                 type: string
+ *               location:
+ *                 type: string
+ *               openingTimes:
+ *                 type: string
+ *               contactInfo:
+ *                 type: string
  *     responses:
  *       200:
- *         description: User registered successfully
+ *         description: Vendor registered successfully
  *         content:
  *           application/json:
  *             schema:
@@ -35,12 +47,14 @@ const prisma = new PrismaClient();
  *               properties:
  *                 message:
  *                   type: string
- *                 user:
+ *                 vendor:
  *                   type: object
  *                   properties:
  *                     id:
- *                       type: integer
+ *                       type: string
  *                     email:
+ *                       type: string
+ *                     name:
  *                       type: string
  *       400:
  *         description: Invalid input
@@ -52,7 +66,7 @@ const prisma = new PrismaClient();
  *                 error:
  *                   type: string
  *       500:
- *         description: Failed to register user
+ *         description: Failed to register vendor
  *         content:
  *           application/json:
  *             schema:
@@ -63,36 +77,42 @@ const prisma = new PrismaClient();
  */
 router.post('/register', [
   check('email').isEmail().withMessage('Please enter a valid email'),
-  check('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters long')
+  check('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters long'),
+  check('name').not().isEmpty().withMessage('Name is required'),
+  check('postcode').not().isEmpty().withMessage('Postcode is required'),
+  check('location').not().isEmpty().withMessage('Location is required'),
+  check('openingTimes').not().isEmpty().withMessage('Opening times are required'),
+  check('contactInfo').not().isEmpty().withMessage('Contact info is required'),
 ], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
+    console.error('Validation errors:', errors.array());
     return res.status(400).json({ errors: errors.array() });
   }
 
-  const { email, password } = req.body;
+  const { email, password, name, postcode, location, openingTimes, contactInfo } = req.body;
   try {
-    const existingUser = await prisma.user.findUnique({ where: { email } });
-    if (existingUser) {
-      return res.status(400).json({ error: 'Email is already registered' });
-    }
-
     const hashedPassword = await bcrypt.hash(password, 10);
+    console.log('Hashed Password:', hashedPassword); // Log the hashed password
 
-    const user = await prisma.user.create({
-      data: {
-        email,
-        password: hashedPassword,
-      },
-    });
+    const vendorData = {
+      id: uuidv4(), // Generate UUID for vendor ID
+      email,
+      password: hashedPassword,
+      name,
+      postcode,
+      location,
+      openingTimes,
+      contactInfo
+    };
 
-    // Omit the password from the response
-    const { password: _, ...userWithoutPassword } = user;
+    const vendor = await vendorService.registerVendor(vendorData);
+    console.log('Vendor registered:', vendor);
 
-    res.status(200).json({ message: 'User registered successfully', user: userWithoutPassword });
+    res.status(200).json({ message: 'Vendor registered successfully', vendor });
   } catch (error) {
-    console.error('Error registering user:', error);
-    res.status(500).json({ error: 'Failed to register user. Please try again later.' });
+    console.error('Error registering vendor:', error.message);
+    res.status(500).json({ error: error.message });
   }
 });
 
@@ -100,7 +120,7 @@ router.post('/register', [
  * @swagger
  * /api/v1/auth/login:
  *   post:
- *     summary: Login a user
+ *     summary: Login a vendor
  *     tags: [Auth]
  *     requestBody:
  *       required: true
@@ -115,7 +135,7 @@ router.post('/register', [
  *                 type: string
  *     responses:
  *       200:
- *         description: User logged in successfully
+ *         description: Vendor logged in successfully
  *         content:
  *           application/json:
  *             schema:
@@ -125,12 +145,14 @@ router.post('/register', [
  *                   type: string
  *                 token:
  *                   type: string
- *                 user:
+ *                 vendor:
  *                   type: object
  *                   properties:
  *                     id:
- *                       type: integer
+ *                       type: string
  *                     email:
+ *                       type: string
+ *                     name:
  *                       type: string
  *       400:
  *         description: Invalid input
@@ -151,7 +173,7 @@ router.post('/register', [
  *                 error:
  *                   type: string
  *       500:
- *         description: Failed to login user
+ *         description: Failed to login vendor
  *         content:
  *           application/json:
  *             schema:
@@ -163,19 +185,24 @@ router.post('/register', [
 router.post('/login', [
   check('email').isEmail().withMessage('Please enter a valid email'),
   check('password').not().isEmpty().withMessage('Password is required')
-], (req, res, next) => {
+], async (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
+    console.error('Validation errors:', errors.array());
     return res.status(400).json({ errors: errors.array() });
   }
 
-  passport.authenticate('local', { session: false }, (err, user, info) => {
+  passport.authenticate('local', { session: false }, async (err, user, info) => {
     if (err || !user) {
-      return res.status(401).json({ error: info ? info.message : 'Login failed' });
+      console.error('Authentication error:', err || (info && info.message) || 'Login failed');
+      return res.status(401).json({ error: (info && info.message) || 'Login failed' });
     }
 
-    req.login(user, { session: false }, (err) => {
+    console.log('User authenticated:', user); // Log the user object
+
+    req.login(user, { session: false }, async (err) => {
       if (err) {
+        console.error('Login error:', err);
         return res.status(500).json({ error: 'Login failed. Please try again later.' });
       }
 
@@ -183,10 +210,20 @@ router.post('/login', [
         expiresIn: '1h',
       });
 
-      // Omit the password from the response
-      const { password: _, ...userWithoutPassword } = user;
+      // Fetch the vendor details
+      const vendor = await prisma.vendor.findUnique({ where: { email: user.email } });
 
-      return res.status(200).json({ message: 'Login successful', token, user: userWithoutPassword });
+      if (!vendor) {
+        console.error('Vendor not found for email:', user.email);
+        return res.status(404).json({ error: 'Vendor not found' });
+      }
+
+      console.log('Vendor details:', vendor);
+
+      // Omit the password from the response
+      const { password: _, ...vendorWithoutPassword } = vendor;
+
+      return res.status(200).json({ message: 'Login successful', token, vendor: vendorWithoutPassword });
     });
   })(req, res, next);
 });
@@ -195,11 +232,11 @@ router.post('/login', [
  * @swagger
  * /api/v1/auth/logout:
  *   post:
- *     summary: Logout a user
+ *     summary: Logout a vendor
  *     tags: [Auth]
  *     responses:
  *       200:
- *         description: User logged out successfully
+ *         description: Vendor logged out successfully
  *         content:
  *           application/json:
  *             schema:

@@ -9,11 +9,17 @@ module.exports = (passport) => {
       try {
         const user = await prisma.user.findUnique({ where: { email } });
         if (!user) {
+          console.error('Incorrect email:', email);
           return done(null, false, { message: 'Incorrect email.' });
         }
 
+        console.log('User found for login:', user);
+
         const isMatch = await bcrypt.compare(password, user.password);
+        console.log('Password comparison result:', isMatch); // Log the result of password comparison
+
         if (!isMatch) {
+          console.error('Incorrect password for email:', email);
           return done(null, false, { message: 'Incorrect password.' });
         }
 

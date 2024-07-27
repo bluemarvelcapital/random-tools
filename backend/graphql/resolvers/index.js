@@ -1,10 +1,10 @@
 const { mergeResolvers } = require('@graphql-tools/merge');
-const authResolvers = require('./authResolvers');
+// const authResolvers = require('./authResolvers');
 const vendorResolvers = require('./vendorResolvers');
 const productsResolvers = require('./productsResolvers')
 
 const resolvers = mergeResolvers([
-  authResolvers,
+  // authResolvers,
   vendorResolvers,
   productsResolvers,
 ]);

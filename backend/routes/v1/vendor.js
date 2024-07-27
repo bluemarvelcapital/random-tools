@@ -5,50 +5,6 @@ const vendorService = require('../../services/vendorService');
 const productService = require('../../services/productService');
 const shopifyService = require('../../services/shopifyService');
 
-/**
- * @swagger
- * /vendor/register:
- *   post:
- *     summary: Register a new vendor
- *     tags: [Vendor]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               name:
- *                 type: string
- *               email:
- *                 type: string
- *               postcode:
- *                 type: string
- *               location:
- *                 type: string
- *               openingTimes:
- *                 type: string
- *               contactInfo:
- *                 type: string
- *     responses:
- *       200:
- *         description: Vendor registered successfully
- *       400:
- *         description: Invalid input
- *       500:
- *         description: Failed to register vendor
- */
-router.post('/register', ensureAuthenticated, async (req, res) => {
-  const { name, email, postcode, location, openingTimes, contactInfo } = req.body;
-
-  try {
-    const vendor = await vendorService.registerVendor(req.user.id, req.body);
-    res.status(200).json({ message: 'Vendor registered successfully', vendor });
-  } catch (error) {
-    console.error('Error registering vendor:', error);
-    res.status(400).json({ error: error.message });
-  }
-});
 
 /**
  * @swagger
@@ -92,10 +48,22 @@ router.put('/update', ensureAuthenticated, async (req, res) => {
     const updatedVendor = await vendorService.updateVendor(req.body);
     res.status(200).json({ message: 'Vendor profile updated successfully', updatedVendor });
   } catch (error) {
-    console.error('Error updating vendor profile:', error);
-    res.status(400).json({ error: error.message });
+    console.error('Error updating vendor profile:', error.message);
+
+    if (error.message.includes('Vendor not found')) {
+      return res.status(404).json({ error: error.message });
+    }
+
+    if (error.message.includes('Invalid postcode')) {
+      return res.status(400).json({ error: error.message });
+    }
+
+    res.status(500).json({ error: 'Failed to update vendor profile. Please try again later.' });
   }
 });
+
+
+
 
 /**
  * @swagger

@@ -8,11 +8,28 @@ generator client {
 }
 
 model User {
-  id       Int      @id @default(autoincrement())
+  id       String   @id @default(uuid())
   email    String   @unique
   password String
   role     String   @default("user")
   vendors  Vendor[]
+}
+
+model Vendor {
+  id           String    @id @default(uuid())
+  name         String
+  email        String    @unique
+  postcode     String
+  location     String
+  openingTimes String
+  contactInfo  String
+  latitude     Float
+  longitude    Float
+  userId       String
+  user         User      @relation(fields: [userId], references: [id])
+  products     Product[]
+  orders       Order[]
+  deletionRequests DeletionRequest[]
 }
 
 model Product {
@@ -59,23 +76,6 @@ model Image {
   url       String
   productId String
   product   Product  @relation(fields: [productId], references: [id])
-}
-
-model Vendor {
-  id          String    @id @default(uuid())
-  name        String
-  email       String    @unique
-  postcode    String
-  location    String
-  openingTimes String
-  contactInfo String
-  latitude    Float
-  longitude   Float
-  userId      Int
-  user        User      @relation(fields: [userId], references: [id])
-  products    Product[]
-  orders      Order[]
-  deletionRequests DeletionRequest[]
 }
 
 model Customer {

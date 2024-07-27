@@ -15,36 +15,6 @@ const vendorResolvers = {
     order: async (parent, args) => await prisma.order.findUnique({ where: { id: args.id } }),
   },
   Mutation: {
-    createVendor: async (parent, args, context) => {
-      if (!context.user) {
-        throw new ApolloError('Not authenticated');
-      }
-
-      const existingVendor = await prisma.vendor.findUnique({ where: { email: args.email } });
-      if (existingVendor) {
-        throw new ApolloError('Vendor email already registered.');
-      }
-
-      const response = await axios.get(`${postcodesIoUrl}/${args.postcode}`);
-      if (response.data.status !== 200) {
-        throw new ApolloError('Invalid postcode');
-      }
-
-      const vendor = await prisma.vendor.create({
-        data: {
-          name: args.name,
-          email: args.email,
-          latitude: response.data.result.latitude,
-          longitude: response.data.result.longitude,
-          location: args.location,
-          openingTimes: args.openingTimes,
-          contactInfo: args.contactInfo,
-          userId: context.user.id,
-        },
-      });
-
-      return vendor;
-    },
     updateVendor: async (parent, args, context) => {
       if (!context.user) {
         throw new ApolloError('Not authenticated');
@@ -97,7 +67,7 @@ const vendorResolvers = {
           description: args.description,
           price: args.price,
           stock: args.stock,
-          vendorId: args.vendorId,
+          vendorId: context.user.vendorId, // Ensure the vendorId is coming from the authenticated user's context
         },
       });
 
