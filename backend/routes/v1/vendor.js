@@ -315,17 +315,27 @@ router.delete('/product/:id', ensureAuthenticated, checkRoles(['vendor', 'admin'
     await shopifyService.deleteProductFromShopify(product.shopifyId);
 
     // Delete related images and variants first to avoid foreign key constraint issues
+    console.log(`Attempting to delete related images and variants for product ID ${req.params.id}`);
     await productService.deleteProductRelations(req.params.id);
 
     // Delete from local database
+    console.log(`Attempting to delete product with ID ${req.params.id} from Database`);
     await productService.deleteProduct(req.params.id);
     
+    // Validate deletion from the database
+    const deletedProduct = await productService.getProductById(req.params.id);
+    if (deletedProduct) {
+      console.error(`Failed to delete product with ID ${req.params.id} from Database`);
+      return res.status(500).json({ error: 'Failed to delete product from Database' });
+    }
+
     res.status(200).json({ message: 'Product deleted successfully' });
   } catch (error) {
     console.error(`Error deleting product with ID ${req.params.id}:`, error);
     res.status(400).json({ error: error.message });
   }
 });
+
 
 
 
