@@ -1,4 +1,3 @@
- 
 import { AppProvider, Frame, TopBar } from '@shopify/polaris';
 import NavigationBar from './NavigationBar';
 import { useState, useCallback } from 'react';

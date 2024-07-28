@@ -60,6 +60,7 @@ export const AuthProvider = ({ children }) => {
       console.error('Logout failed', error);
     }
   };
+  
 
   return (
     <AuthContext.Provider value={{ user, setUser, login, register, logout }}>

@@ -80,9 +80,16 @@ router.post('/login', (req, res, next) => {
   })(req, res, next);
 });
 
-router.get('/logout', function(req, res) {
+router.get('/logout', (req, res) => {
   req.logout();
-  res.redirect('/');
+  req.session.destroy((err) => {
+    if (err) {
+      return res.status(500).send({ message: 'Failed to logout' });
+    }
+    res.clearCookie('connect.sid'); // Assuming you're using connect.sid cookie for sessions
+    res.send({ message: 'Logout successful' });
+  });
 });
+
 
 module.exports = router;
