@@ -2,8 +2,12 @@ require('dotenv').config();
 const express = require('express');
 const session = require('express-session');
 const passport = require('passport');
+const RedisStore = require('connect-redis').default;
+const { createClient } = require('redis');
+
 require('./config/passport-config')(passport); // Local strategy
 require('./config/passport-jwt')(passport); // JWT strategy
+
 const { ApolloServer } = require('@apollo/server');
 const { expressMiddleware } = require('@apollo/server/express4');
 const { makeExecutableSchema } = require('@graphql-tools/schema');
@@ -17,8 +21,19 @@ const setupSwagger = require('./swagger');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
 
+// Initialize default super admin
+require('./config/user-init'); // This will run your user initialization script
+
 const app = express();
 const PORT = process.env.PORT || 5001;
+
+// Redis client
+const redisClient = createClient({
+  url: process.env.REDIS_URL,
+  legacyMode: true,
+});
+
+redisClient.connect().catch(console.error);
 
 app.use(cors({
   origin: 'http://localhost:3000',
@@ -29,6 +44,7 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(session({
+  store: new RedisStore({ client: redisClient }),
   secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,

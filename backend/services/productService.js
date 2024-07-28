@@ -2,11 +2,12 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 const addProduct = async (productData) => {
-  const { tags, images, variants, vendorName, ...rest } = productData; // Extract vendorName
+  const { tags, images, variants, vendorName, shopifyId, ...rest } = productData; // Extract vendorName and shopifyId
   return prisma.$transaction(async (tx) => {
     const product = await tx.product.create({
       data: {
         ...rest,
+        shopifyId, // Ensure shopifyId is included
         tags: tags, // Ensure tags are passed as an array
         images: {
           create: images.map((url) => ({ url })),
@@ -19,7 +20,6 @@ const addProduct = async (productData) => {
             stock: variant.stock,
             weight: variant.weight,
             weightUnit: variant.weightUnit,
-            // Remove image if not part of Prisma schema
           })),
         },
       },
@@ -31,7 +31,6 @@ const addProduct = async (productData) => {
     return product;
   });
 };
-
 
 const getProductById = async (id) => {
   return prisma.product.findUnique({ 
@@ -71,6 +70,12 @@ const deleteProduct = async (id) => {
   return prisma.product.delete({ where: { id } });
 };
 
+const deleteProductRelations = async (productId) => {
+  await prisma.image.deleteMany({ where: { productId } });
+  await prisma.variant.deleteMany({ where: { productId } });
+};
+
+
 const getProductsByVendorId = async (vendorId) => {
   return prisma.product.findMany({ 
     where: { vendorId },
@@ -106,6 +111,7 @@ module.exports = {
   getProductById,
   updateProduct,
   deleteProduct,
+  deleteProductRelations,
   getProductsByVendorId,
   getOrdersByVendorId,
   updateOrderStatus,

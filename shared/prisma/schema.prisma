@@ -8,28 +8,31 @@ generator client {
 }
 
 model User {
-  id       String   @id @default(uuid())
-  email    String   @unique
-  password String
-  role     String   @default("user")
-  vendors  Vendor[]
+  id        String    @id @default(uuid())
+  email     String    @unique
+  password  String
+  role      String    @default("user")
+  vendors   Vendor[]
 }
 
 model Vendor {
-  id           String    @id @default(uuid())
-  name         String
-  email        String    @unique
-  postcode     String
-  location     String
-  openingTimes String
-  contactInfo  String
-  latitude     Float
-  longitude    Float
-  userId       String
-  user         User      @relation(fields: [userId], references: [id])
-  products     Product[]
-  orders       Order[]
-  deletionRequests DeletionRequest[]
+  id                 String             @id @default(uuid())
+  name               String
+  email              String             @unique
+  postcode           String
+  location           String
+  openingTimes       String
+  contactInfo        String
+  latitude           Float
+  longitude          Float
+  userId             String
+  user               User               @relation(fields: [userId], references: [id])
+  products           Product[]
+  orders             Order[]
+  status             String             @default("pending") // 'pending', 'approved', 'rejected'
+  deletionRequests   DeletionRequest[]
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
 }
 
 model Product {

@@ -1,10 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const { ensureAuthenticated } = require('../../middleware/auth');
+const { checkRoles } = require('../../middleware/roleMiddleware');
+const { ensureCorrectVendor } = require('../../middleware/vendorMiddleware');
 const vendorService = require('../../services/vendorService');
 const productService = require('../../services/productService');
 const shopifyService = require('../../services/shopifyService');
-
 
 /**
  * @swagger
@@ -43,7 +44,7 @@ const shopifyService = require('../../services/shopifyService');
  *       500:
  *         description: Failed to update vendor profile
  */
-router.put('/update', ensureAuthenticated, async (req, res) => {
+router.put('/update', ensureAuthenticated, checkRoles(['vendor', 'admin']), ensureCorrectVendor, async (req, res) => {
   try {
     const updatedVendor = await vendorService.updateVendor(req.body);
     res.status(200).json({ message: 'Vendor profile updated successfully', updatedVendor });
@@ -62,9 +63,6 @@ router.put('/update', ensureAuthenticated, async (req, res) => {
   }
 });
 
-
-
-
 /**
  * @swagger
  * /api/v1/vendor/{id}:
@@ -85,7 +83,7 @@ router.put('/update', ensureAuthenticated, async (req, res) => {
  *       500:
  *         description: Failed to fetch vendor
  */
-router.get('/:id', async (req, res) => {
+router.get('/:id', ensureAuthenticated, checkRoles(['vendor', 'admin']), ensureCorrectVendor, async (req, res) => {
   try {
     const vendor = await vendorService.getVendorById(req.params.id);
     if (vendor) {
@@ -111,7 +109,7 @@ router.get('/:id', async (req, res) => {
  *       500:
  *         description: Failed to fetch vendors
  */
-router.get('/', async (req, res) => {
+router.get('/', ensureAuthenticated, checkRoles(['admin']), async (req, res) => {
   try {
     const vendors = await vendorService.getAllVendors();
     res.json(vendors);
@@ -120,6 +118,7 @@ router.get('/', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch vendors. Please try again later.' });
   }
 });
+
 
 /**
  * @swagger
@@ -176,7 +175,7 @@ router.get('/', async (req, res) => {
  *       500:
  *         description: Failed to add product
  */
-router.post('/product/add', ensureAuthenticated, async (req, res) => {
+router.post('/product/add', ensureAuthenticated, checkRoles(['vendor', 'admin']), ensureCorrectVendor, async (req, res) => {
   try {
     const vendorId = req.body.vendorId;
     if (!vendorId) {
@@ -190,267 +189,7 @@ router.post('/product/add', ensureAuthenticated, async (req, res) => {
 
     req.body.vendorName = vendor.name; // Add vendor name to product data
 
-    const shopifyProduct = await shopifyService.addProductToShopify(req.body);
-
-    if (!shopifyProduct) {
-      return res.status(500).json({ error: 'Failed to add product to Shopify' });
-    }
-
-    const productData = { ...req.body, shopifyId: shopifyProduct.id.toString() };
-    const product = await productService.addProduct(productData);
-
-    res.status(200).json({ message: 'Product added successfully', product });
-  } catch (error) {
-    console.error('Error adding product:', error);
-    res.status(400).json({ error: error.message });
-  }
-});
-
-
-/**
- * @swagger
- * /api/v1/vendor/product/update:
- *   put:
- *     summary: Update a product
- *     tags: [Vendor]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               id:
- *                 type: string
- *               title:
- *                 type: string
- *               description:
- *                 type: string
- *               price:
- *                 type: number
- *               stock:
- *                 type: integer
- *               sku:
- *                 type: string
- *               barcode:
- *                 type: string
- *               weight:
- *                 type: number
- *               weightUnit:
- *                 type: string
- *               tags:
- *                 type: array
- *                 items:
- *                   type: string
- *               productType:
- *                 type: string
- *               status:
- *                 type: string
- *               inventoryPolicy:
- *                 type: string
- *               fulfillmentService:
- *                 type: string
- *     responses:
- *       200:
- *         description: Product updated successfully
- *       400:
- *         description: Invalid input
- *       404:
- *         description: Product not found
- *       500:
- *         description: Failed to update product
- */
-
-router.put('/product/update', ensureAuthenticated, async (req, res) => {
-  try {
-    const product = await productService.getProductById(req.body.id);
-    if (!product) {
-      return res.status(404).json({ error: 'Product not found' });
-    }
-
-    await shopifyService.updateProductInShopify(product.shopifyId, req.body);
-    const updatedProduct = await productService.updateProduct(req.body);
-    res.status(200).json({ message: 'Product updated successfully', updatedProduct });
-  } catch (error) {
-    console.error('Error updating product:', error);
-    res.status(400).json({ error: error.message });
-  }
-});
-
-
-/**
- * @swagger
- * /api/v1/vendor/update:
- *   put:
- *     summary: Update vendor profile
- *     tags: [Vendor]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               id:
- *                 type: string
- *               name:
- *                 type: string
- *               email:
- *                 type: string
- *               postcode:
- *                 type: string
- *               location:
- *                 type: string
- *               openingTimes:
- *                 type: string
- *               contactInfo:
- *                 type: string
- *     responses:
- *       200:
- *         description: Vendor profile updated successfully
- *       400:
- *         description: Invalid input
- *       404:
- *         description: Vendor not found
- *       500:
- *         description: Failed to update vendor profile
- */
-router.put('/update', ensureAuthenticated, async (req, res) => {
-  try {
-    const updatedVendor = await vendorService.updateVendor(req.body);
-    res.status(200).json({ message: 'Vendor profile updated successfully', updatedVendor });
-  } catch (error) {
-    console.error('Error updating vendor profile:', error);
-    res.status(400).json({ error: error.message });
-  }
-});
-
-/**
- * @swagger
- * /api/v1/vendor/{id}:
- *   get:
- *     summary: Get vendor details
- *     tags: [Vendor]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Vendor details fetched successfully
- *       404:
- *         description: Vendor not found
- *       500:
- *         description: Failed to fetch vendor
- */
-router.get('/:id', async (req, res) => {
-  try {
-    const vendor = await vendorService.getVendorById(req.params.id);
-    if (vendor) {
-      res.json(vendor);
-    } else {
-      res.status(404).json({ error: 'Vendor not found' });
-    }
-  } catch (error) {
-    console.error(`Error fetching vendor with ID ${req.params.id}:`, error);
-    res.status(500).json({ error: 'Failed to fetch vendor. Please try again later.' });
-  }
-});
-
-/**
- * @swagger
- * /api/v1/vendor:
- *   get:
- *     summary: Get all vendors
- *     tags: [Vendor]
- *     responses:
- *       200:
- *         description: Vendors fetched successfully
- *       500:
- *         description: Failed to fetch vendors
- */
-router.get('/', async (req, res) => {
-  try {
-    const vendors = await vendorService.getAllVendors();
-    res.json(vendors);
-  } catch (error) {
-    console.error('Error fetching vendors:', error);
-    res.status(500).json({ error: 'Failed to fetch vendors. Please try again later.' });
-  }
-});
-
-/**
- * @swagger
- * /api/v1/vendor/product/add:
- *   post:
- *     summary: Add a new product
- *     tags: [Vendor]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               vendorId:
- *                 type: string
- *               title:
- *                 type: string
- *               description:
- *                 type: string
- *               price:
- *                 type: number
- *               stock:
- *                 type: integer
- *               sku:
- *                 type: string
- *               barcode:
- *                 type: string
- *               weight:
- *                 type: number
- *               weightUnit:
- *                 type: string
- *               tags:
- *                 type: array
- *                 items:
- *                   type: string
- *               productType:
- *                 type: string
- *               status:
- *                 type: string
- *               inventoryPolicy:
- *                 type: string
- *               fulfillmentService:
- *                 type: string
- *               images:
- *                 type: array
- *                 items:
- *                   type: string
- *     responses:
- *       200:
- *         description: Product added successfully
- *       400:
- *         description: Invalid input
- *       500:
- *         description: Failed to add product
- */
-router.post('/product/add', ensureAuthenticated, async (req, res) => {
-  try {
-    const vendorId = req.body.vendorId;
-    if (!vendorId) {
-      return res.status(400).json({ error: 'Vendor ID is required' });
-    }
-
-    const vendor = await vendorService.getVendorById(vendorId);
-    if (!vendor) {
-      return res.status(404).json({ error: 'Vendor not found' });
-    }
-
-    req.body.vendorName = vendor.name; // Add vendor name to product data
-
-    const shopifyProduct = await shopifyService.addProductToShopify(req.body);
+    const shopifyProduct = await shopifyService.syncProductToShopify(req.body);
 
     if (!shopifyProduct) {
       return res.status(500).json({ error: 'Failed to add product to Shopify' });
@@ -525,14 +264,13 @@ router.post('/product/add', ensureAuthenticated, async (req, res) => {
  *       500:
  *         description: Failed to update product
  */
-router.put('/product/update', ensureAuthenticated, async (req, res) => {
+router.put('/product/update', ensureAuthenticated, checkRoles(['vendor', 'admin']), ensureCorrectVendor, async (req, res) => {
   try {
     const product = await productService.getProductById(req.body.id);
     if (!product) {
       return res.status(404).json({ error: 'Product not found' });
     }
 
-    await shopifyService.updateProductInShopify(product.shopifyId, req.body);
     const updatedProduct = await productService.updateProduct(req.body);
     res.status(200).json({ message: 'Product updated successfully', updatedProduct });
   } catch (error) {
@@ -561,21 +299,35 @@ router.put('/product/update', ensureAuthenticated, async (req, res) => {
  *       500:
  *         description: Failed to delete product
  */
-router.delete('/product/:id', ensureAuthenticated, async (req, res) => {
+router.delete('/product/:id', ensureAuthenticated, checkRoles(['vendor', 'admin']), async (req, res) => {
   try {
     const product = await productService.getProductById(req.params.id);
     if (!product) {
       return res.status(404).json({ error: 'Product not found' });
     }
 
+    // Check if the user is authorized to delete this product
+    if (req.user.role !== 'admin' && product.vendorId !== req.user.vendorId) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    // Delete from Shopify
     await shopifyService.deleteProductFromShopify(product.shopifyId);
+
+    // Delete related images and variants first to avoid foreign key constraint issues
+    await productService.deleteProductRelations(req.params.id);
+
+    // Delete from local database
     await productService.deleteProduct(req.params.id);
+    
     res.status(200).json({ message: 'Product deleted successfully' });
   } catch (error) {
     console.error(`Error deleting product with ID ${req.params.id}:`, error);
     res.status(400).json({ error: error.message });
   }
 });
+
+
 
 /**
  * @swagger
@@ -595,7 +347,7 @@ router.delete('/product/:id', ensureAuthenticated, async (req, res) => {
  *       500:
  *         description: Failed to fetch products
  */
-router.get('/:vendorId/products', async (req, res) => {
+router.get('/:vendorId/products', ensureAuthenticated, checkRoles(['vendor', 'admin']), ensureCorrectVendor, async (req, res) => {
   try {
     const products = await productService.getProductsByVendorId(req.params.vendorId);
     res.json(products);
@@ -617,7 +369,7 @@ router.get('/:vendorId/products', async (req, res) => {
  *       500:
  *         description: Failed to fetch orders
  */
-router.get('/orders', ensureAuthenticated, async (req, res) => {
+router.get('/orders', ensureAuthenticated, checkRoles(['vendor', 'admin']), async (req, res) => {
   try {
     const orders = await productService.getOrdersByVendorId(req.user.id);
     res.json(orders);
@@ -652,7 +404,7 @@ router.get('/orders', ensureAuthenticated, async (req, res) => {
  *       500:
  *         description: Failed to update order status
  */
-router.put('/order/update', ensureAuthenticated, async (req, res) => {
+router.put('/order/update', ensureAuthenticated, checkRoles(['vendor', 'admin']), async (req, res) => {
   const { id, status } = req.body;
   try {
     const updatedOrder = await productService.updateOrderStatus(id, status);
@@ -688,7 +440,7 @@ router.put('/order/update', ensureAuthenticated, async (req, res) => {
  *       500:
  *         description: Failed to create deletion request
  */
-router.post('/deletion-request', ensureAuthenticated, async (req, res) => {
+router.post('/deletion-request', ensureAuthenticated, checkRoles(['vendor', 'admin']), async (req, res) => {
   const { vendorId, reason } = req.body;
   try {
     const request = await productService.createDeletionRequest(vendorId, reason);
@@ -711,7 +463,7 @@ router.post('/deletion-request', ensureAuthenticated, async (req, res) => {
  *       500:
  *         description: Failed to fetch deletion requests
  */
-router.get('/deletion-requests', ensureAuthenticated, async (req, res) => {
+router.get('/deletion-requests', ensureAuthenticated, checkRoles(['vendor', 'admin']), async (req, res) => {
   try {
     const requests = await productService.getDeletionRequests(req.user.id);
     res.status(200).json(requests);
@@ -722,8 +474,3 @@ router.get('/deletion-requests', ensureAuthenticated, async (req, res) => {
 });
 
 module.exports = router;
-
-
-
-
-

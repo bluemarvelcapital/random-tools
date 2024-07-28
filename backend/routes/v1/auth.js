@@ -93,7 +93,6 @@ router.post('/register', [
   const { email, password, name, postcode, location, openingTimes, contactInfo } = req.body;
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
-    console.log('Hashed Password:', hashedPassword); // Log the hashed password
 
     const vendorData = {
       id: uuidv4(), // Generate UUID for vendor ID
@@ -103,11 +102,11 @@ router.post('/register', [
       postcode,
       location,
       openingTimes,
-      contactInfo
+      contactInfo,
+      status: 'pending'
     };
 
     const vendor = await vendorService.registerVendor(vendorData);
-    console.log('Vendor registered:', vendor);
 
     res.status(200).json({ message: 'Vendor registered successfully', vendor });
   } catch (error) {
@@ -145,6 +144,15 @@ router.post('/register', [
  *                   type: string
  *                 token:
  *                   type: string
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                     email:
+ *                       type: string
+ *                     role:
+ *                       type: string
  *                 vendor:
  *                   type: object
  *                   properties:
@@ -198,32 +206,40 @@ router.post('/login', [
       return res.status(401).json({ error: (info && info.message) || 'Login failed' });
     }
 
-    console.log('User authenticated:', user); // Log the user object
-
     req.login(user, { session: false }, async (err) => {
       if (err) {
         console.error('Login error:', err);
         return res.status(500).json({ error: 'Login failed. Please try again later.' });
       }
 
-      const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, {
+      const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, process.env.JWT_SECRET, {
         expiresIn: '1h',
       });
 
-      // Fetch the vendor details
-      const vendor = await prisma.vendor.findUnique({ where: { email: user.email } });
+      const response = {
+        message: 'Login successful',
+        token,
+        user: {
+          id: user.id,
+          email: user.email,
+          role: user.role
+        }
+      };
 
-      if (!vendor) {
-        console.error('Vendor not found for email:', user.email);
-        return res.status(404).json({ error: 'Vendor not found' });
+      if (user.role === 'vendor') {
+        // Fetch the vendor details
+        const vendor = await prisma.vendor.findUnique({ where: { email: user.email } });
+
+        if (!vendor) {
+          console.error('Vendor not found for email:', user.email);
+          return res.status(404).json({ error: 'Vendor not found' });
+        }
+
+        const { password: _, ...vendorWithoutPassword } = vendor;
+        response.vendor = vendorWithoutPassword;
       }
 
-      console.log('Vendor details:', vendor);
-
-      // Omit the password from the response
-      const { password: _, ...vendorWithoutPassword } = vendor;
-
-      return res.status(200).json({ message: 'Login successful', token, vendor: vendorWithoutPassword });
+      return res.status(200).json(response);
     });
   })(req, res, next);
 });
@@ -232,11 +248,11 @@ router.post('/login', [
  * @swagger
  * /api/v1/auth/logout:
  *   post:
- *     summary: Logout a vendor
+ *     summary: Logout a user
  *     tags: [Auth]
  *     responses:
  *       200:
- *         description: Vendor logged out successfully
+ *         description: User logged out successfully
  *         content:
  *           application/json:
  *             schema:

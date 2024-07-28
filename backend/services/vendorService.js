@@ -83,6 +83,13 @@ const updateVendor = async (vendorData) => {
         where: { id },
         data,
       });
+  
+      // Update the user's email as well
+      await prisma.user.update({
+        where: { id: updatedVendor.userId },
+        data: { email },
+      });
+  
       return updatedVendor;
     } catch (error) {
       if (error.code === 'P2025') {
@@ -92,6 +99,7 @@ const updateVendor = async (vendorData) => {
       throw new Error('Failed to update vendor profile. Please try again later.');
     }
   };
+  
 
 const getVendorById = async (id) => {
   if (!id) {
